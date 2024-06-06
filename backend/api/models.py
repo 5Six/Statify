@@ -7,6 +7,8 @@ class User(AbstractBaseUser):
     spotify_display_name = models.CharField(max_length=255)
     spotify_email = models.EmailField()
 
+    USERNAME_FIELD = 'spotify_id'
+
 
 class SpotifyToken(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
