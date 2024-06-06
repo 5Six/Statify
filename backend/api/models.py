@@ -1,5 +1,11 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractBaseUser
+
+
+class User(AbstractBaseUser):
+    spotify_id = models.CharField(max_length=255, unique=True)
+    spotify_display_name = models.CharField(max_length=255)
+    spotify_email = models.EmailField()
 
 
 class SpotifyToken(models.Model):
