@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import User, SpotifyToken
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from rest_framework.authtoken.models import Token
 
 # Register your models here.
 
@@ -33,5 +34,6 @@ class SpotifyTokenAdmin(admin.ModelAdmin):
     list_filter = ('expires_in',)
 
 
+admin.site.register(Token)
 admin.site.register(SpotifyToken, SpotifyTokenAdmin)
 admin.site.register(User, UserAdmin)

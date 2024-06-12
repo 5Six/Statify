@@ -1,9 +1,9 @@
 import requests
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.utils import timezone
-from django.contrib.auth import login, logout
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework.authtoken.models import Token
 from datetime import timedelta
 
 from .models import User, SpotifyToken
@@ -43,7 +43,7 @@ def get_most_played_song(request):
 
     data = r.json()
 
-    if data['error']['message'] == 'The access token expired':
+    if 'error' in data and data['error']['message'] == 'The access token expired':
         print('EXPIRED')
         print(request.user)
 
@@ -101,8 +101,8 @@ def spotify_callback(request):
 
     expires_at = timezone.now() + timedelta(seconds=expires_in)
 
-    spotify_token, created = SpotifyToken.objects.update_or_create(
-        user=user.spotify_id,
+    SpotifyToken.objects.update_or_create(
+        user=user,
         defaults={
             'access_token': access_token,
             'refresh_token': refresh_token,
@@ -110,7 +110,10 @@ def spotify_callback(request):
         }
     )
 
+    token, updated = Token.objects.update_or_create(user=user)
+
     response = redirect('http://localhost:5173/Statify')
     response.set_cookie('spotify_token', access_token, httponly=False, secure=True)
+    response.set_cookie('auth_token', token.key, httponly=False, secure=True)
 
     return response
