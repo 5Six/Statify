@@ -1,8 +1,9 @@
 import requests
 from django.shortcuts import render, redirect
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from django.utils import timezone
+from django.contrib.auth import login, logout
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
 from datetime import timedelta
 
 from .models import User, SpotifyToken
@@ -11,6 +12,7 @@ from .models import User, SpotifyToken
 SPOTIFY_CLIENT_ID = '2375706fa464459880921748e3178908'
 SPOTIFY_CLIENT_SECRET = 'fc837fd375a44dcda9d66828b8648e71'
 SPOTIFY_REDIRECT_URI = 'http://localhost:8000/api/callback/'
+
 
 # Create your views here.
 @api_view(['GET'])
@@ -33,7 +35,6 @@ def logout(request):
 @api_view(['GET'])
 def get_most_played_song(request):
     token = request.GET.get('token')
-    print(token)
     url = f'https://api.spotify.com/v1/me/top/tracks?limit=50'
     headers = {
         'Authorization': f'Bearer {token}'
@@ -42,7 +43,15 @@ def get_most_played_song(request):
 
     data = r.json()
 
+    if data['error']['message'] == 'The access token expired':
+        print('EXPIRED')
+        print(request.user)
+
     return Response(data)
+
+
+def refresh_spotify_token(user):
+    pass
 
 
 @api_view(['GET'])
@@ -103,4 +112,5 @@ def spotify_callback(request):
 
     response = redirect('http://localhost:5173/Statify')
     response.set_cookie('spotify_token', access_token, httponly=False, secure=True)
+
     return response
