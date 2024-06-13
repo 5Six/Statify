@@ -5,13 +5,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.authtoken.models import Token
 from datetime import timedelta
+import base64
 
 from .models import User, SpotifyToken
+from .utils import refresh_spotify_token
 
+from statify.settings import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 
-SPOTIFY_CLIENT_ID = '2375706fa464459880921748e3178908'
-SPOTIFY_CLIENT_SECRET = 'fc837fd375a44dcda9d66828b8648e71'
-SPOTIFY_REDIRECT_URI = 'http://localhost:8000/api/callback/'
 
 
 # Create your views here.
@@ -34,24 +34,23 @@ def logout(request):
 
 @api_view(['GET'])
 def get_most_played_song(request):
-    token = request.GET.get('token')
-    url = f'https://api.spotify.com/v1/me/top/tracks?limit=50'
+    spotify_token = SpotifyToken.objects.get(user=request.user)
+    access_token = spotify_token.access_token
+
+    if spotify_token.expires_in < timezone.now():
+        access_token = refresh_spotify_token(request.user)
+
+    url = 'https://api.spotify.com/v1/me/top/tracks?limit=50'
     headers = {
-        'Authorization': f'Bearer {token}'
+        'Authorization': f'Bearer {access_token}'
     }
     r = requests.get(url, headers=headers)
 
     data = r.json()
-
     if 'error' in data and data['error']['message'] == 'The access token expired':
         print('EXPIRED')
-        print(request.user)
 
     return Response(data)
-
-
-def refresh_spotify_token(user):
-    pass
 
 
 @api_view(['GET'])

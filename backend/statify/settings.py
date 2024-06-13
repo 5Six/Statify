@@ -137,3 +137,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL = 'api.User'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # Add this line
+    ],
+}
+
+SPOTIFY_CLIENT_ID = '2375706fa464459880921748e3178908'
+SPOTIFY_CLIENT_SECRET = 'fc837fd375a44dcda9d66828b8648e71'
+SPOTIFY_REDIRECT_URI = 'http://localhost:8000/api/callback/'
