@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',  # Token authentication
     'api',
     'corsheaders',
+    'adrf',
 
     'django.contrib.sites',
 ]

@@ -3,9 +3,15 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from adrf.decorators import api_view as aapi_view
 from rest_framework.authtoken.models import Token
 from datetime import timedelta
-import base64
+import random
+import math
+import time
+import httpx
+import asyncio
+from asgiref.sync import sync_to_async, async_to_sync
 
 from .models import User, SpotifyToken
 from .utils import refresh_spotify_token
@@ -47,8 +53,6 @@ def get_most_played_song(request):
     r = requests.get(url, headers=headers)
 
     data = r.json()
-    if 'error' in data and data['error']['message'] == 'The access token expired':
-        print('EXPIRED')
 
     return Response(data)
 
@@ -116,3 +120,96 @@ def spotify_callback(request):
     response.set_cookie('auth_token', token.key, httponly=False, secure=True)
 
     return response
+
+@api_view(['GET'])
+def get_playlist(request):
+    spotify_token = SpotifyToken.objects.get(user=request.user)
+    access_token = spotify_token.access_token
+
+    if spotify_token.expires_in < timezone.now():
+        access_token = refresh_spotify_token(request.user)
+
+    url = f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}'
+    header = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(url, headers=header)
+
+    data = r.json()
+
+    return Response(data)
+
+@api_view(['GET'])
+def get_playlist_random_song(request):
+    spotify_token = SpotifyToken.objects.get(user=request.user)
+    access_token = spotify_token.access_token
+
+    if spotify_token.expires_in < timezone.now():
+        access_token = refresh_spotify_token(request.user)
+
+    url = f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}/tracks?&limit=1'
+    header = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(url, headers=header)
+
+    data = r.json()
+
+    tracks_total = data['total']
+
+    n = random.randint(0, tracks_total-1)
+    url = f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}/tracks?offset={n}&limit=1'
+    header = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(url, headers=header)
+
+    data = r.json()
+
+    print(data['items'][0]['track']['name'])
+
+    return Response(data)
+
+
+@aapi_view(['GET'])
+async def get_all_playlist_tracks(request):
+    start = time.time()
+    spotify_token = await sync_to_async(SpotifyToken.objects.get)(user=request.user)
+    access_token = spotify_token.access_token
+    if spotify_token.expires_in < timezone.now():
+        access_token = refresh_spotify_token(request.user)
+
+    url = f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}/tracks?&limit=1'
+    header = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(url, headers=header)
+
+    data = r.json()
+    tracks_total = data['total']
+
+    urls = []
+    for i in range(math.ceil(tracks_total / 100)):
+        urls.append(f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}/tracks?offset={100 * i}&limit=100')
+
+    tasks = [get_100_tracks(url, access_token) for url in urls]
+    results = await asyncio.gather(*tasks)
+
+    names = []
+    for result in results:
+        for item in result['items']:
+            artists = []
+            for artist in item['track']['artists']:
+                artists.append(artist['name'])
+            names.append((item['track']['name'], artists, item['track']['preview_url']))
+
+    end = time.time()
+    print(end-start)
+    return Response(names)
+
+
+async def get_100_tracks(url, access_token):
+    async with httpx.AsyncClient() as client:
+        header = {'Authorization': f'Bearer {access_token}'}
+        r = await client.get(url, headers=header)
+        return r.json()
+
+@api_view(['GET'])
+def search(request):
+    pass
