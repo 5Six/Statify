@@ -19,7 +19,6 @@ from .utils import refresh_spotify_token
 from statify.settings import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 
 
-
 # Create your views here.
 @api_view(['GET'])
 def login(request):
@@ -170,11 +169,10 @@ def get_playlist_random_song(request):
 
 @aapi_view(['GET'])
 async def get_all_playlist_tracks(request):
-    start = time.time()
     spotify_token = await sync_to_async(SpotifyToken.objects.get)(user=request.user)
     access_token = spotify_token.access_token
     if spotify_token.expires_in < timezone.now():
-        access_token = refresh_spotify_token(request.user)
+        access_token = await sync_to_async(refresh_spotify_token)(request.user)
 
     url = f'https://api.spotify.com/v1/playlists/{request.GET.get('playlist_id')}/tracks?&limit=1'
     header = {'Authorization': f'Bearer {access_token}'}
@@ -199,8 +197,6 @@ async def get_all_playlist_tracks(request):
                 artists.append(artist['name'])
             names.append((item['track']['name'], artists, item['track']['preview_url']))
 
-    end = time.time()
-    print(end-start)
     return Response(names)
 
 
@@ -210,6 +206,19 @@ async def get_100_tracks(url, access_token):
         r = await client.get(url, headers=header)
         return r.json()
 
+
 @api_view(['GET'])
 def search(request):
-    pass
+    spotify_token = SpotifyToken.objects.get(user=request.user)
+    access_token = spotify_token.access_token
+    if spotify_token.expires_in < timezone.now():
+        access_token = refresh_spotify_token(request.user)
+
+    query = request.GET.get('q')
+    search_type = request.GET.get('search_type')
+
+    url = f'https://api.spotify.com/v1/search?q={query}&type={search_type}'
+    header = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(url, headers=header)
+    return Response(r.json())

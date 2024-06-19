@@ -9,5 +9,5 @@ urlpatterns = [
     path('get_playlist/', get_playlist, name='get_playlist'),
     path('get_playlist_random_song/', get_playlist_random_song, name='get_playlist_random_song'),
     path('get_all_playlist_tracks/', get_all_playlist_tracks, name='get_all_playlist_tracks'),
-
+    path('search/', search, name='search'),
 ]
